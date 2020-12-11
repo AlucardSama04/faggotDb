@@ -9,10 +9,12 @@ def FaggotDB(src: vs.VideoNode, thrY=40, thrC=None, radiusY=15, radiusC=15, CbY=
     if not isinstance(src, vs.VideoNode):
         raise TypeError(f'{funcName}: This is not a clip!')
     
-    bits = clip.format.bits_per_sample
+    bits = src.format.bits_per_sample
 
-    if bits <= 16:
-        src16 = depth(src, 16)
+    if bits < 16:
+        src = depth(src, 16)
+    if bits > 16:
+        src = depth(src, 16)
 
     if mask is None:
         mask = core.adg.Mask(core.std.PlaneStats(src16), 4).std.Inflate()
@@ -21,18 +23,18 @@ def FaggotDB(src: vs.VideoNode, thrY=40, thrC=None, radiusY=15, radiusC=15, CbY=
     if thrC is None:
         thrC = thrY // 2
     
-    if graincC is None:
-        grainC // grainY
+    if grainC is None:
+        graincC = grainY // 2
     
     f3kdb = core.neo_f3kdb.Deband if neo else core.f3kdb.Deband
 
-    U = plane(src16, 1)
-    V = plane(src16, 2)
+    U = plane(src, 1)
+    V = plane(src, 2)
     
     U = f3kdb(U, range=radiusC, y=thrC, cb=CbC, cr=CrC, grainy=grainC, grainc=0, sample_mode=sample_mode, dynamic_grain=dynamic_grainC, keep_tv_range=tv_range, output_depth=16)
     V = f3kdb(V, range=radiusC, y=thrC, cb=CbC, cr=CrC, grainy=grainC, grainc=0, sample_mode=sample_mode, dynamic_grain=dynamic_grainC, keep_tv_range=tv_range, output_depth=16)
 
-    filtered = core.std.ShufflePlanes([src16, U, V], [0, 0, 0], vs.YUV)
+    filtered = core.std.ShufflePlanes([src, U, V], [0, 0, 0], vs.YUV)
     filtered = f3kdb(filtered, range=radiusY, y=thrY, cb=CbY, cr=CrY, grainy=grainY, grainc=0, sample_mode=sample_mode, dynamic_grain=dynamic_grainY, keep_tv_range=tv_range, output_depth=16)
 
-    return depth(core.std.MaskedMerge(filtered, src16, mask), bits)
+    return depth(core.std.MaskedMerge(filtered, src, mask), bits)
